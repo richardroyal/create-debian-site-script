@@ -14,7 +14,7 @@
 CONFPATH="/etc/apache2/sites-available"
 WWWPATH="/var/www"
 REPOPATH="/opt/deploy"
-REPOURL="<insert>"
+REPOURL="git.bazooka.se:/opt/git" # insert remote git repo here e.g git.mycompany.com:/opt/git
 
 REPO=""
 DOMAIN=""
@@ -31,6 +31,8 @@ DBPWD=""
 DBPORT=3306
 SSHTUNNEL=false
 SSHPID=0
+
+DEPS="curl tar mysql git ssh sed apache2 grep"
 
 function revert {
 	echo "Reverting..."
@@ -71,14 +73,20 @@ echo "The following paths will be used as convention:"
 echo
 echo "- Local web root: $WWWPATH"
 echo "- Local repo root: $REPOPATH"
-echo "- Origin repo: $REPOURL"
+echo "- Origin repo: <none specified>"
 echo
 
-read -ep "Continue (y/n): "
+echo "Checking dependencies.."
 
-if [[ "$REPLY" != [yY] ]]; then
-	exit 0
-fi
+for DEP in $DEPS; do
+	if [ -z "$(which $DEP)" ]; then
+		echo "Dependency fail: you need $DEP"
+		exit 1
+	fi
+done
+
+echo "Dependencies OK"
+echo
 
 while [ -z "$DOMAIN" ]; do
 	read -ep "Site name (e.g company.dev): " DOMAIN
@@ -117,7 +125,8 @@ if [[ $REPLY == [yY] ]]; then
 	fi
 
 	while [ -z "$REMOTEPWD" ]; do
-		read -eps "Database root password: " REMOTEPWD
+		read -esp "Database root password: " REMOTEPWD
+		echo
 
 		if [ -z "$REMOTEPWD" ]; then
 			echo "*** You must enter the database root password"
@@ -217,7 +226,8 @@ else
 	done
 
 	while [ -z "$DBPWD" ]; do
-		read -eps "Existing database password: " DBPWD
+		read -esp "Existing database password: " DBPWD
+		echo
 
 		if [ -z "$DBPWD" ]; then
 			echo "*** You must enter a database password"
@@ -237,6 +247,14 @@ if [ -n "$REPO" ]; then
 		exit 1
 	fi
 
+	while [ -z "$REPOURL" ]; do
+		read -ep "No remote git repo specified in the file - enter remote git repo root url (e.g git.mycompany.com:/opt/git): " REPOURL
+
+		if [ -z "$REPOURL" ]; then
+			echo "*** You must enter a git repo url"
+		fi
+	done
+
 	while [ -z "$REPOUSER" ]; do
 		read -ep "Repo user name: " REPOUSER
 
@@ -245,9 +263,15 @@ if [ -n "$REPO" ]; then
 		fi
 	done
 
+	read -ep "Branch to check out (blank for none/master): " -i "develop"
+
 	echo "Cloning repo in $REPOPATH/$REPO..."
 	echo
-	git clone $REPOUSER@$REPOURL/$REPO $REPOPATH/$REPO 1> /dev/null
+	if [ -z $REPLY ]; then
+		git clone $REPOUSER@$REPOURL/$REPO $REPOPATH/$REPO 1> /dev/null
+	else
+		git clone -b $REPLY $REPOUSER@$REPOURL/$REPO $REPOPATH/$REPO 1> /dev/null
+	fi
 	echo
 
 	if [ $? != 0 ]; then
@@ -290,8 +314,9 @@ if [ -n "$WPVERSION" ]; then
 		exit 1
 	fi
 
-	echo "Resetting to basic perms..."
+	echo "Resetting to perms 644..."
 	chmod -R 644 $WWWPATH/$DOMAIN
+	chmod -R g+X $WWWPATH/$DOMAIN
 
 	echo "Creating empty .htaccess..."
 	touch $WWWPATH/$DOMAIN/.htaccess
@@ -354,6 +379,11 @@ if [ -n "$WPVERSION" ]; then
 	echo "Setting FS_METHOD to direct..."
 	LINESTART=$(grep -n "define('WP_DEBUG'" $WWWPATH/$DOMAIN/wp-config.php | cut -d: -f1)
 	sed -i "${LINESTART}a define('FS_METHOD', 'direct');" $WWWPATH/$DOMAIN/wp-config.php
+
+	echo "Setting WP_HOME and WP_SITEURL.."
+	sed -i "${LINESTART}a define('WP_HOME', 'http://' . \$_SERVER['HTTP_HOST']);" $WWWPATH/$DOMAIN/wp-config.php
+	sed -i "${LINESTART}a define('WP_SITEURL', 'http://' . \$_SERVER['HTTP_HOST']);" $WWWPATH/$DOMAIN/wp-config.php
+
 else
 	if [ -n "$REPO" ]; then
 		echo "Symlinking $WWWPATH/$DOMAIN to $REPOPATH/$REPO..."
