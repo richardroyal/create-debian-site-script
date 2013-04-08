@@ -9,7 +9,7 @@
 # The following paths will be used as convention:
 # - Local web root: /var/www
 # - Local repo root: /opt/deploy
-# - Origin repo: <insert>
+# - Origin repo: <insert remote repo url>
 
 CONFPATH="/etc/apache2/sites-available"
 WWWPATH="/var/www"
