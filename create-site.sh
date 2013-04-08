@@ -115,133 +115,145 @@ CONF="<VirtualHost *:80>
 	ErrorLog \${APACHE_LOG_DIR}/$DOMAIN-error.log
 </VirtualHost>"
 
-read -ep "Create a new database or use existing (y/n): "
+read -ep "Configure database? (y/n): "
 
 if [[ $REPLY == [yY] ]]; then
-	read -ep "Remote database host (use blank for localhost): " REMOTEHOST
+	read -ep "Create a new database or use existing? (y/n): "
 
-	if [ -z "$REMOTEHOST" ] || [ "$REMOTEHOST" == "localhost" ]; then
-		REMOTEHOST="127.0.0.1"
-	fi
+	if [[ $REPLY == [yY] ]]; then
+		read -ep "Remote database host (use blank for localhost): " REMOTEHOST
 
-	while [ -z "$REMOTEPWD" ]; do
-		read -esp "Database root password: " REMOTEPWD
-		echo
-
-		if [ -z "$REMOTEPWD" ]; then
-			echo "*** You must enter the database root password"
+		if [ -z "$REMOTEHOST" ] || [ "$REMOTEHOST" == "localhost" ]; then
+			REMOTEHOST="127.0.0.1"
 		fi
-	done
 
-	while [ -z "$DBNAME" ]; do
-		read -ep "New database name: " DBNAME
+		while [ -z "$REMOTEPWD" ]; do
+			read -esp "Database root password: " REMOTEPWD
+			echo
 
-		if [ -z "$DBNAME" ]; then
-			echo "*** You must enter a database name"
-		fi
-	done
-
-	while [ -z "$DBUSER" ]; do
-		read -ep "New database user: " DBUSER
-
-		if [ -z "$DBUSER" ]; then
-			echo "*** You must enter a database user"
-		fi
-	done
-
-	while [ -z "$DBPWD" ]; do
-		RNDPWD=$(date +%s | sha256sum | base64 | head -c 12)
-		read -ep "New database password: " -i "$RNDPWD" DBPWD
-
-		if [ -z "$DBPWD" ]; then
-			echo "*** You must enter a database password"
-		fi
-	done
-
-	if [ $REMOTEHOST != "127.0.0.1" ]; then
-		read -ep "Remote host, create SSH tunnel (y/n): "
-
-		if [[ "$REPLY" == [yY] ]]; then
-			SSHTUNNEL=true
-
-			while [ -z "$SSHUSER" ]; do
-				read -ep "Remote host SSH username: " SSHUSER
-
-				if [ -z "$SSHUSER" ]; then
-					echo "*** You must enter an SSH username"
-				fi
-			done
-
-			echo "Creating SSH tunnel to $REMOTEHOST..."
-
-			ssh -fN -L 3307:127.0.0.1:3306 $UNAME@$REMOTEHOST
-
-			if [ $? != 0 ]; then
-				echo "*** FAILED"
-				exit 1
+			if [ -z "$REMOTEPWD" ]; then
+				echo "*** You must enter the database root password"
 			fi
+		done
 
-			SSHPID=$(ps aux | grep "[s]sh -fN -L 3307:127.0.0.1:3306 $UNAME@$REMOTEHOST" | awk '{ print $2 }')
+		while [ -z "$DBNAME" ]; do
+			read -ep "New database name: " DBNAME
+
+			if [ -z "$DBNAME" ]; then
+				echo "*** You must enter a database name"
+			fi
+		done
+
+		while [ -z "$DBUSER" ]; do
+			read -ep "New database user: " DBUSER
+
+			if [ -z "$DBUSER" ]; then
+				echo "*** You must enter a database user"
+			fi
+		done
+
+		while [ -z "$DBPWD" ]; do
+			RNDPWD=$(date +%s | sha256sum | base64 | head -c 12)
+			read -ep "New database password: " -i "$RNDPWD" DBPWD
+
+			if [ -z "$DBPWD" ]; then
+				echo "*** You must enter a database password"
+			fi
+		done
+
+		if [ $REMOTEHOST != "127.0.0.1" ]; then
+			read -ep "Remote host, create SSH tunnel? (y/n): "
+
+			if [[ "$REPLY" == [yY] ]]; then
+				SSHTUNNEL=true
+
+				while [ -z "$SSHUSER" ]; do
+					read -ep "Remote host SSH username: " SSHUSER
+
+					if [ -z "$SSHUSER" ]; then
+						echo "*** You must enter an SSH username"
+					fi
+				done
+
+				echo "Creating SSH tunnel to $REMOTEHOST..."
+
+				ssh -fN -L 3307:127.0.0.1:3306 $UNAME@$REMOTEHOST
+
+				if [ $? != 0 ]; then
+					echo "*** FAILED"
+					exit 1
+				fi
+
+				SSHPID=$(ps aux | grep "[s]sh -fN -L 3307:127.0.0.1:3306 $UNAME@$REMOTEHOST" | awk '{ print $2 }')
+			fi
 		fi
-	fi
 
-	echo "Creating database $DBNAME..."
+		echo "Creating database $DBNAME..."
 
-	DBHOST=$REMOTEHOST
+		DBHOST=$REMOTEHOST
 
-	if $SSHTUNNEL; then
-		DBPORT=3307
-		DBHOST="127.0.0.1"
-	fi
+		if $SSHTUNNEL; then
+			DBPORT=3307
+			DBHOST="127.0.0.1"
+		fi
 
-	mysql -h $DBHOST -P $DBPORT -u root -p$REMOTEPWD -e "CREATE DATABASE $DBNAME; GRANT ALL ON $DBNAME.* TO '$DBUSER'@'localhost' IDENTIFIED BY '$DBPWD';"
+		mysql -h $DBHOST -P $DBPORT -u root -p$REMOTEPWD -e "CREATE DATABASE $DBNAME; GRANT ALL ON $DBNAME.* TO '$DBUSER'@'localhost' IDENTIFIED BY '$DBPWD';"
 
-	if [ $? != 0 ]; then
-		echo "*** FAILED"
+		if [ $? != 0 ]; then
+			echo "*** FAILED"
+		else
+			echo "Created database $DBNAME@$REMOTEHOST using login $DBUSER/$DBPWD"
+		fi
+
+		if $SSHTUNNEL; then
+			echo "Killing SSH tunnel..."
+			kill $SSHPID
+		fi
 	else
-		echo "Created database $DBNAME@$REMOTEHOST using login $DBUSER/$DBPWD"
+		read -ep "Existing database host (use blank for localhost): " REMOTEHOST
+
+		while [ -z "$DBNAME" ]; do
+			read -ep "Existing database name: " DBNAME
+
+			if [ -z "$DBNAME" ]; then
+				echo "*** You must enter a database name"
+			fi
+		done
+
+		while [ -z "$DBUSER" ]; do
+			read -ep "Existing database user: " DBUSER
+
+			if [ -z "$DBUSER" ]; then
+				echo "*** You must enter a database user"
+			fi
+		done
+
+		while [ -z "$DBPWD" ]; do
+			read -esp "Existing database password: " DBPWD
+			echo
+
+			if [ -z "$DBPWD" ]; then
+				echo "*** You must enter a database password"
+			fi
+		done
 	fi
-
-	if $SSHTUNNEL; then
-		echo "Killing SSH tunnel..."
-		kill $SSHPID
-	fi
-else
-	read -ep "Existing database host (use blank for localhost): " REMOTEHOST
-
-	while [ -z "$DBNAME" ]; do
-		read -ep "Existing database name: " DBNAME
-
-		if [ -z "$DBNAME" ]; then
-			echo "*** You must enter a database name"
-		fi
-	done
-
-	while [ -z "$DBUSER" ]; do
-		read -ep "Existing database user: " DBUSER
-
-		if [ -z "$DBUSER" ]; then
-			echo "*** You must enter a database user"
-		fi
-	done
-
-	while [ -z "$DBPWD" ]; do
-		read -esp "Existing database password: " DBPWD
-		echo
-
-		if [ -z "$DBPWD" ]; then
-			echo "*** You must enter a database password"
-		fi
-	done
 fi
 
 if [ -z "$REMOTEHOST" ] || [ "$REMOTEHOST" == '127.0.0.1' ]; then
 	REMOTEHOST="localhost"
 fi
 
-read -ep "Name of git repo (e.g client/site, or blank for none): " REPO
+read -ep "Clone git repo? (y/n): "
 
-if [ -n "$REPO" ]; then
+if [[ $REPLY == [yY] ]]; then
+	while [ -z "$REPO" ]; do
+		read -ep "Name of git repo (e.g client/site): " REPO
+
+		if [ -z "$REPO" ]; then
+			echo "*** You must enter a git repo name"
+		fi
+	done
+
 	if [ -d "$REPOPATH/$REPO" ]; then
 		echo "*** Repo already exists!"
 		exit 1
@@ -286,9 +298,17 @@ if [ -n "$REPO" ]; then
 	cd - > /dev/null 2>&1
 fi
 
-read -ep "Install WordPress? Enter version nr (e.g 3.5.1 or blank for no): " WPVERSION
+read -ep "Install WordPress? (y/n): "
 
-if [ -n "$WPVERSION" ]; then
+if [[ $REPLY == [yY] ]]; then
+	while [ -z "$WPVERSION" ]; do
+		read -ep "Version nr (e.g 3.5.1): " WPVERSION
+
+		if [ -z "$WPVERSION" ]; then
+			echo "*** You must enter a version nr"
+		fi
+	done
+
 	read -ep "WordPress language (e.g sv_SE or blank for default): " WPLANG
 
 	if [ -n "$WPLANG" ]; then
@@ -328,11 +348,21 @@ if [ -n "$WPVERSION" ]; then
 	echo "Removing sample plugin..."
 	rm $WWWPATH/$DOMAIN/wp-content/plugins/hello.php
 
-	if [ -n "$REPO" ] && [ -d "$REPOPATH/$REPO/themes" ]; then
-		echo "Creating a symlink to $REPOPATH/$REPO/themes..."
-		rm -r $WWWPATH/$DOMAIN/wp-content/themes
-		ln -s $REPOPATH/$REPO/themes $WWWPATH/$DOMAIN/wp-content/themes
-		echo "Remember to symlink individual plugins manually!"
+	if [ -n "$REPO" ]; then
+		if [ -d "$REPOPATH/$REPO/themes" ]; then
+			echo "Creating a symlink to $REPOPATH/$REPO/themes..."
+			rm -r $WWWPATH/$DOMAIN/wp-content/themes
+			ln -s $REPOPATH/$REPO/themes $WWWPATH/$DOMAIN/wp-content/themes
+		fi
+
+		if [ -d "$REPOPATH/$REPO/plugins" ]; then
+			echo "Creating symlinks to individual plugins in $REPOPATH/$REPO/plugins..."
+
+			for FILE in $REPOPATH/$REPO/plugins/*; do
+				echo "Symlink: $FILE"
+				ln -s $FILE $WWWPATH/$DOMAIN/wp-content/plugins
+			done
+		fi
 	fi
 
 	echo "Setting up wp-config.php..."
@@ -383,14 +413,25 @@ if [ -n "$WPVERSION" ]; then
 	echo "Setting WP_HOME and WP_SITEURL.."
 	sed -i "${LINESTART}a define('WP_HOME', 'http://' . \$_SERVER['HTTP_HOST']);" $WWWPATH/$DOMAIN/wp-config.php
 	sed -i "${LINESTART}a define('WP_SITEURL', 'http://' . \$_SERVER['HTTP_HOST']);" $WWWPATH/$DOMAIN/wp-config.php
-
 else
 	if [ -n "$REPO" ]; then
 		echo "Symlinking $WWWPATH/$DOMAIN to $REPOPATH/$REPO..."
 		ln -s $REPOPATH/$REPO $WWWPATH/$DOMAIN
 	else
-		echo "Creating empty folder in $WWWPATH/$DOMAIN..."
+		echo "Creating index.html in $WWWPATH/$DOMAIN..."
 		mkdir $WWWPATH/$DOMAIN
+
+		echo "<!doctype html>
+			<html>
+				<head>
+					<meta charset=\"utf-8\">
+					<title>$DOMAIN</title>
+				</head>
+
+				<body>
+					<p>Index of $DOMAIN</p>
+				</body>
+			</html>" >> $WWWPATH/$DOMAIN/index.html
 	fi
 fi
 
