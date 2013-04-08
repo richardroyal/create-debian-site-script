@@ -6,15 +6,14 @@
 # - Install and configure a new web site
 # - Download and install a version of WordPress
 # - Symlink the web root or WP themes folder to the git repo
-# The following paths will be used as convention:
+# The following paths will be used as convention unless changed:
 # - Local web root: /var/www
 # - Local repo root: /opt/deploy
-# - Origin repo: <insert remote repo url>
 
 CONFPATH="/etc/apache2/sites-available"
 WWWPATH="/var/www"
 REPOPATH="/opt/deploy"
-REPOURL="git.bazooka.se:/opt/git" # insert remote git repo here e.g git.mycompany.com:/opt/git
+REPOURL="" # insert remote git repo here e.g git.mycompany.com:/opt/git
 
 REPO=""
 DOMAIN=""
@@ -69,11 +68,10 @@ echo "- Install and configure a new web site"
 echo "- Download and install a version of WordPress"
 echo "- Symlink the web root to the git repo"
 echo
-echo "The following paths will be used as convention:"
+echo "The following paths will be used as convention unless changed:"
 echo
 echo "- Local web root: $WWWPATH"
 echo "- Local repo root: $REPOPATH"
-echo "- Origin repo: <none specified>"
 echo
 
 echo "Checking dependencies.."
