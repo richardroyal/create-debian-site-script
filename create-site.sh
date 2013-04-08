@@ -40,16 +40,25 @@ function revert {
 	a2dissite $DOMAIN > /dev/null 2>&1
 
 	if [ -n "$DOMAIN" ]; then
-		echo "Removing $CONFPATH/$DOMAIN..."
-		rm $CONFPATH/$DOMAIN > /dev/null 2>&1
+		read -ep "Remove $CONFPATH/$DOMAIN? (y/n): "
 
-		echo "Removing $WWWPATH/$DOMAIN..."
-		rm -r $WWWPATH/$DOMAIN > /dev/null 2>&1
+		if [[ "$REPLY" == [yY] ]]; then
+			rm $CONFPATH/$DOMAIN > /dev/null 2>&1
+		fi
+
+		read -ep "Remove $WWWPATH/$DOMAIN? (y/n): "
+
+		if [[ "$REPLY" == [yY] ]]; then
+			rm -r $WWWPATH/$DOMAIN > /dev/null 2>&1
+		fi
 	fi
 
 	if [ -n "$REPO" ]; then
-		echo "Removing $REPOPATH/$REPO..."
-		rm -r $REPOPATH/$REPO > /dev/null 2>&1
+		read -ep "Remove $REPOPATH/$REPO? (y/n): "
+
+		if [[ "$REPLY" == [yY] ]]; then
+			rm -r $REPOPATH/$REPO > /dev/null 2>&1
+		fi
 	fi
 
 	echo "Reloading apache..."
@@ -176,8 +185,9 @@ if [[ $REPLY == [yY] ]]; then
 				echo "Creating SSH tunnel to $REMOTEHOST..."
 
 				ssh -fN -L 3307:127.0.0.1:3306 $UNAME@$REMOTEHOST
+				RET=$?
 
-				if [ $? != 0 ]; then
+				if [ $RET != 0 ]; then
 					echo "*** FAILED"
 					exit 1
 				fi
@@ -196,9 +206,12 @@ if [[ $REPLY == [yY] ]]; then
 		fi
 
 		mysql -h $DBHOST -P $DBPORT -u root -p$REMOTEPWD -e "CREATE DATABASE $DBNAME; GRANT ALL ON $DBNAME.* TO '$DBUSER'@'localhost' IDENTIFIED BY '$DBPWD';"
+		RET=$?
 
-		if [ $? != 0 ]; then
+		if [ $RET != 0 ]; then
 			echo "*** FAILED"
+			revert
+			exit 1
 		else
 			echo "Created database $DBNAME@$REMOTEHOST using login $DBUSER/$DBPWD"
 		fi
@@ -277,14 +290,17 @@ if [[ $REPLY == [yY] ]]; then
 
 	echo "Cloning repo in $REPOPATH/$REPO..."
 	echo
+
 	if [ -z $REPLY ]; then
-		git clone $REPOUSER@$REPOURL/$REPO $REPOPATH/$REPO 1> /dev/null
+		git clone $REPOUSER@$REPOURL/$REPO $REPOPATH/$REPO
 	else
-		git clone -b $REPLY $REPOUSER@$REPOURL/$REPO $REPOPATH/$REPO 1> /dev/null
+		git clone -b $REPLY $REPOUSER@$REPOURL/$REPO $REPOPATH/$REPO
 	fi
+
+	RET=$?
 	echo
 
-	if [ $? != 0 ]; then
+	if [ $RET != 0 ]; then
 		echo "*** FAILED"
 		revert
 		exit 1
@@ -324,9 +340,10 @@ if [ -n "$WPVERSION" ]; then
 	echo
 	mkdir $WWWPATH/$DOMAIN
 	curl "$WPURL" | tar -xz -C $WWWPATH/$DOMAIN --strip 1
+	RET=$?
 	echo
 
-	if [ $? != 0 ]; then
+	if [ $RET != 0 ]; then
 		echo "*** FAILED"
 		revert
 		exit 1
@@ -439,8 +456,9 @@ chown -R $USER:www-data $WWWPATH/$DOMAIN
 echo "Creating and enabling site configuration file at $CONFPATH/$DOMAIN..."
 echo "$CONF" > $CONFPATH/$DOMAIN
 a2ensite $DOMAIN 1> /dev/null
+RET=$?
 
-if [ $? != 0 ]; then
+if [ $RET != 0 ]; then
 	echo "*** FAILED"
 	revert
 	exit 1
@@ -448,8 +466,9 @@ fi
 
 echo "Reloading apache..."
 service apache2 reload 1> /dev/null
+RET=$?
 
-if [ $? != 0 ]; then
+if [ $RET != 0 ]; then
 	echo "*** FAILED"
 	revert
 	exit 1
