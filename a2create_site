@@ -11,9 +11,9 @@
 # - Local repo root: /opt/deploy
 
 CONFPATH="/etc/apache2/sites-available"
-WWWPATH="/var/www"
-REPOPATH="/opt/deploy"
-REPOURL="" # insert remote git repo here e.g git.mycompany.com:/opt/git
+WWWPATH="/home/rroyal/www"
+REPOPATH="/"
+REPOURL="git.saidev.co/saidigital/" # insert remote git repo here e.g git.mycompany.com:/opt/git
 
 REPO=""
 DOMAIN=""
@@ -25,8 +25,8 @@ WPLANGSUB=""
 REMOTEHOST=""
 REMOTEPWD=""
 DBNAME=""
-DBUSER=""
-DBPWD=""
+DBUSER="root"
+DBPWD="Agency123"
 DBPORT=3306
 SSHTUNNEL=false
 SSHPID=0
