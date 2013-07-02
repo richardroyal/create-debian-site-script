@@ -258,7 +258,7 @@ read -ep "Clone git repo? (y/n): "
 
 if [[ $REPLY == [yY] ]]; then
 	while [ -z "$REPO" ]; do
-		read -ep "Name of git repo (e.g client/site): " REPO
+		read -ep "Name of git repo (e.g project_name): " REPO
 
 		if [ -z "$REPO" ]; then
 			echo "*** You must enter a git repo name"
@@ -286,7 +286,7 @@ if [[ $REPLY == [yY] ]]; then
 		fi
 	done
 
-	read -ep "Branch to check out (blank for none/master): " -i "develop"
+	read -ep "Branch to check out (blank for none/master): " -i "master"
 
 	echo "Cloning repo in $REPOPATH/$REPO..."
 	echo
@@ -308,10 +308,10 @@ if [[ $REPLY == [yY] ]]; then
 		exit 1
 	fi
 
-	echo "Setting git filemode to false..."
-	cd $REPOPATH/$REPO
-	git config core.filemode false
-	cd - > /dev/null 2>&1
+#	echo "Setting git filemode to false..."
+#	cd $REPOPATH/$REPO
+#	git config core.filemode false
+#	cd - > /dev/null 2>&1
 fi
 
 read -ep "Install WordPress? (y/n): "
@@ -430,26 +430,6 @@ if [ -n "$WPVERSION" ]; then
 	echo "Setting WP_HOME and WP_SITEURL.."
 	sed -i "${LINESTART}a define('WP_HOME', 'http://' . \$_SERVER['HTTP_HOST']);" $WWWPATH/$DOMAIN/wp-config.php
 	sed -i "${LINESTART}a define('WP_SITEURL', 'http://' . \$_SERVER['HTTP_HOST']);" $WWWPATH/$DOMAIN/wp-config.php
-else
-	if [ -n "$REPO" ]; then
-		echo "Symlinking $WWWPATH/$DOMAIN to $REPOPATH/$REPO..."
-		ln -s $REPOPATH/$REPO $WWWPATH/$DOMAIN
-	else
-		echo "Creating index.html in $WWWPATH/$DOMAIN..."
-		mkdir $WWWPATH/$DOMAIN
-
-		echo "<!doctype html>
-			<html>
-				<head>
-					<meta charset=\"utf-8\">
-					<title>$DOMAIN</title>
-				</head>
-
-				<body>
-					<p>Index of $DOMAIN</p>
-				</body>
-			</html>" >> $WWWPATH/$DOMAIN/index.html
-	fi
 fi
 
 echo "Setting owner of $WWWPATH/$DOMAIN to $USER:www-data..."
