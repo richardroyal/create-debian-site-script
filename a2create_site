@@ -12,12 +12,12 @@
 
 CONFPATH="/etc/apache2/sites-available"
 WWWPATH="/home/rroyal/www"
-REPOPATH="/"
-REPOURL="git.saidev.co/saidigital/" # insert remote git repo here e.g git.mycompany.com:/opt/git
+REPOPATH="saidigital"
+REPOURL="git.saidev.co" # insert remote git repo here e.g git.mycompany.com:/opt/git
 
 REPO=""
 DOMAIN=""
-REPOUSER=""
+REPOUSER="git"
 WPVERSION=""
 WPLANG=""
 WPLANGSUB=""
@@ -125,7 +125,7 @@ CONF="<VirtualHost *:80>
 read -ep "Configure database? (y/n): "
 
 if [[ $REPLY == [yY] ]]; then
-	read -ep "Create a new database or use existing? (y/n): "
+	read -ep "Create a new database? (y/n): "
 
 	if [[ $REPLY == [yY] ]]; then
 		read -ep "Remote database host (use blank for localhost): " REMOTEHOST
@@ -292,9 +292,11 @@ if [[ $REPLY == [yY] ]]; then
 	echo
 
 	if [ -z $REPLY ]; then
-		git clone $REPOUSER@$REPOURL/$REPO $REPOPATH/$REPO
+		#git clone $REPOUSER@$REPOURL/$REPO $REPOPATH/$REPO
+		git clone $REPOUSER@$REPOURL:$REPOPATH/$REPO
 	else
-		git clone -b $REPLY $REPOUSER@$REPOURL/$REPO $REPOPATH/$REPO
+		#git clone -b $REPLY $REPOUSER@$REPOURL/$REPO $REPOPATH/$REPO
+		git clone -b $REPLY $REPOUSER@$REPOURL:$REPOPATH/$REPO
 	fi
 
 	RET=$?
